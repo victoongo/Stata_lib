@@ -5,7 +5,7 @@ syntax , [NOSUBDIR] [COMBINE] [HTML]
 		exit 
 	}
 	
-	clear //all
+	clear 
 	set matsize 11000
 	set maxvar 32767
 	
@@ -23,13 +23,9 @@ syntax , [NOSUBDIR] [COMBINE] [HTML]
 		local od_list `""Archive" "code" "Combined" "yaml""'
 		local data_list: list dir_list - od_list
 		local data_list: list clean data_list
-		*di `"dir_list `dir_list'"'
-		*di `"data_list `data_list'"'
 		local sql_list
 		foreach x of local data_list {
-			*di "`x'"
 			capture confirm file "./`x'/csv/data_entry.sqlite3"
-			*di _rc
 			if _rc==0 {
 				local sql_list `sql_list' `x'
 				confirmdir ./`x' stata
@@ -40,27 +36,15 @@ syntax , [NOSUBDIR] [COMBINE] [HTML]
 	
 	local pwd: pwd
 	local pwd: subinstr local pwd "\" "/", all
-	*cd `pwd'
 	di "`pwd'"
 	
-	
-	*subdirlist `pwd'
-	
-	*di "sql_list `sql_list'"
-	*di "mark1"
 	if "`combine'"~="" {
 		local sql_list_count: word count `sql_list'
-		*di "`sql_list_count'"
 		if `sql_list_count'>1 {
-			*di "mark2"
 			confirmdir . Combined
 			confirmdir ./Combined stata
-			*confirmdir ./Combined html
 		}
 	}
-	
-	*local sql_list r(sql_list)
-	*di `"back sql_list `sql_list'"'
 	
 	local file_list : dir "./code/do"  files  "lab_*.do", respectcase
 	local file_list1 : subinstr local file_list ".do" "", all
@@ -70,8 +54,7 @@ syntax , [NOSUBDIR] [COMBINE] [HTML]
 		local counter=0
 		foreach dir of local sql_list {
 			cd "`pwd'/`dir'"
-			clear //all
-			*di "1"
+			clear 
 			local csv_file : dir "./csv" files "`hash'.csv", respectcase
 			di `"`csv_file'"'
 			if `"`csv_file'"'~="" {
@@ -85,9 +68,6 @@ syntax , [NOSUBDIR] [COMBINE] [HTML]
 					
 					if "`combine'"~="" {
 						pwd
-						*local dta_file : dir ./stata files "`hash'_l.dta", respectcase
-						*di `"`dta_file'"'
-						*if `"`dta_file'"'~="" {
 						di "prior"
 						local ++counter
 						di "`counter'"
@@ -100,13 +80,10 @@ syntax , [NOSUBDIR] [COMBINE] [HTML]
 							append using "../Combined/stata/`hash'_l.dta"
 							save "../Combined/stata/`hash'_l.dta", replace
 						}
-						*}
 					}
 				}
 			}
 			else di `"`hash'.csv does not exist in `dir'"'
-			*
-			*cd "``dir''/`dir_sub'/stata"
 			
 		}
 		if "`combine'"~="" {
@@ -127,21 +104,17 @@ syntax , [NOSUBDIR] [COMBINE] [HTML]
 		if "`combine'"~="" local sql_list `sql_list' Combined
 		di "post `sql_list'"
 		foreach dir of local sql_list {
-			*pwd
-			*di "*******"
 			di "in html"
 			cd "`pwd'/`dir'/stata"
-			hashtohtml //`dir'
+			hashtohtml 
 		}
 	}
 end
 
 program confirmdir
 	args place target
-	*di "`place'" "`target'"
 	local dir: dir "`place'" dirs "`target'", respectcase
 	local dir_count: word count `dir'
-	*di "`dir_count' +++"
 	if `dir_count'==0 {
 		di "./`x'/stata does not exist"
 		!mkdir "`place'/`target'"
@@ -172,9 +145,6 @@ program hashlongtowide
 end
 	
 program hashtohtml
-	*local hash_list MISSING0000000000008 MISSING0000000000006
-	*args dir
-	*di "`dir'"
 	local file_list : dir . files  "*_ss.dta", respectcase
 	di `"`file_list'"'
 	local hash_list : subinstr local file_list "_ss.dta" "", all
@@ -184,9 +154,6 @@ program hashtohtml
 	htput <link rel=stylesheet href="R2HTMLa.css" type=text/css>
 	htput <body style="margin-top: 0; margin-bottom: 5px">
 	foreach h of local hash_list {
-		*di `"`h'_ss.dtaaa"'
-		*local filename="`h'_ss.dta"
-		*di "`filename'"
 		di "`h'"
 		local hash : dir . files `"`h'_ss.dta"', respectcase
 		di `"`hash'"'
@@ -197,7 +164,6 @@ program hashtohtml
 			local tag __project_name __instrument_name __participant_type __instrument_version_name  __round_name 
 			foreach t of local tag {
 				quietly: levels `t', local(uniqlist)
-				*local uniqlist: list clean uniqlist
 				local uniqlst `uniqlist'
 				htput <tr><td><b>`t'</b></a> </td><td>`uniqlst'</td><tr>
 			}
