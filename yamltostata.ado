@@ -1,4 +1,15 @@
 program yamltostata
+	local pwd: pwd
+	if "`1'"~="" {
+		capture: cd "`1'"
+		if _rc~=0 {
+			di as err "The path you specified does NOT exist!"
+			cd "`pwd'"
+			exit
+		}
+	}
+	else local lookuppath "."
+	
 	cd "$dopath"
 	local file_list : dir . files "lab_*.do", respectcase
 	local file_list1 : subinstr local file_list ".do" "", all
@@ -16,13 +27,7 @@ program yamltostata
 		order hash section question_order_number variable_name unique_id question_identifier question_type question_text
 		capture drop response_options_text_999
 		sort hash section question_order_number
-		save "q_`hash'.dta", replace
-		if `i'==1 save q_all.dta, replace
-		else {
-			quietly: append using q_all
-			*sort 
-			save lookup_table, replace
-		}
-		!del q_`hash'.dta
+		if `i'>1 quietly: append using "`lookuppath'/lookup_table.dta"
+		save "`lookuppath'/lookup_table.dta", replace
 	}
 end
