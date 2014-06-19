@@ -1,6 +1,6 @@
 program yamltostata
-	cd D:/share/yaml
-	local file_list : dir "./do"  files "lab_*.do", respectcase
+	cd "$dopath"
+	local file_list : dir . files "lab_*.do", respectcase
 	local file_list1 : subinstr local file_list ".do" "", all
 	local hash_list : subinstr local file_list1 "lab_" "", all
 	local n_hash: word count `hash_list'
@@ -8,7 +8,7 @@ program yamltostata
 	forvalues i=1/`n_hash' {
 		local hash: word `i' of `hash_list'
 		di "`hash'"
-		insheet using "./csv/q_`hash'.csv", clear
+		insheet using "q_`hash'.csv", clear
 		replace response_options_number=999 if response_options_number==.
 		rename response_options_text response_options_text_
 		quietly: reshape wide response_options_text, i(unique_id) j(response_options_number)
@@ -21,7 +21,7 @@ program yamltostata
 		else {
 			quietly: append using q_all
 			*sort 
-			save q_all, replace
+			save lookup_table, replace
 		}
 		!del q_`hash'.dta
 	}
