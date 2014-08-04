@@ -6,10 +6,9 @@ program hashlongtowide
 	capture: rename other* q_*_other
 	capture: rename edituser* q_*_edituser
 	capture: rename edittime* q_*_edittime
-	di "lab here"
-	di "lab $dopath"
+
 	do "$dopath/lab_`hash'.do"
-di "lab here"
+
 	quietly: compress
 	quietly: destring *, replace
 	order __*
