@@ -48,7 +48,7 @@ syntax
 					hashlongtowide `hash' stata_dir
 					
 				}
-				else di "`csv_file' is empty"
+				else di `"`csv_file' is empty"'
 			}
 		}
 		cd stata

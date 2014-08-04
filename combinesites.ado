@@ -3,7 +3,9 @@ program combinesites
 		di as err "Requires two or more source directories to combine!"
 		exit
 	}
-	
+	* insert a marker so that combined data are named differently. 
+	* check to make sure there are no duplicates in the list of path. 
+	* ask yes/no to continue with default action
 	local pwd: pwd
 	forvalues x=1/100 {
 		if "``x''"~="" {
