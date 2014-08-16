@@ -16,12 +16,15 @@ program combinesites
 				exit
 			}
 			else if "`x'"~="1" {
-				local dta_lst : dir . files "*.dta", respectcase
-				if `"`dta_lst'"'=="" {
-					di as err "The path you provided does NOT contain stata data files for combining!"
-					quietly: cd "`pwd'"
-					exit
+				if "``x''"~="`1'" {
+					local dta_lst : dir . files "*.dta", respectcase
+					if `"`dta_lst'"'=="" {
+						di as err "The path you provided does NOT contain stata data files for combining!"
+						quietly: cd "`pwd'"
+						exit
+					}
 				}
+				else di as err "The No. `=`x'-1' source path is the same as the destination path."
 			}
 		}
 		else {
