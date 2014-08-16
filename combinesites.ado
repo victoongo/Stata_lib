@@ -49,16 +49,17 @@ program combinesites
 				if `counter'==1 di "Combining `hash'"
 				local ++counter
 				use "`hash'_l.dta", clear
-				if `counter'>1 append using "`1'/`hash'_l.dta"
-				quietly: save "`1'/`hash'_l.dta", replace
+				capture destring special, replace
+				if `counter'>1 append using "`1'/combined_`hash'_l.dta"
+				quietly: save "`1'/combined_`hash'_l.dta", replace
 			}
 		}
 		quietly: cd "`1'"
 		clear 
 		local dta_file : dir . files "`hash'_l.dta", respectcase
 		if `"`dta_file'"'~="" {
-			use "`hash'_l.dta"
-			hashlongtowide `hash'
+			use "combined_`hash'_l.dta"
+			hashlongtowide `hash' combine
 		}
 	}
 	quietly: cd "`1'"

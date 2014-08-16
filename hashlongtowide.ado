@@ -1,5 +1,6 @@
 program hashlongtowide
-	args hash
+	args hash 
+	if "`2'"=="combine" local combined combined_
 	quietly: reshape wide response special other edituser edittime, i(__dir_name __entry_id) j(unique_id)
 	quietly: rename response* q_*
 	capture: rename special* q_*_special
@@ -15,9 +16,9 @@ program hashlongtowide
 	
 	local stata "./stata"
 	if "`2'"=="" local stata "."
-	quietly: save "`stata'/`hash'_all.dta", replace
+	quietly: save "`stata'/`combined'`hash'_all.dta", replace
 	quietly: drop *edit*
-	quietly: save "`stata'/`hash'_s.dta", replace
+	quietly: save "`stata'/`combined'`hash'_s.dta", replace
 	quietly: drop *other *special
-	quietly: save "`stata'/`hash'_ss.dta", replace
+	quietly: save "`stata'/`combined'`hash'_ss.dta", replace
 end
