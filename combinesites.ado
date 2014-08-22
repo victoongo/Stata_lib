@@ -49,7 +49,7 @@ program combinesites
 				if `counter'==1 di "Combining `hash'"
 				local ++counter
 				use "`hash'_l.dta", clear
-				capture destring special, replace
+				capture tostring special, replace
 				if `counter'>1 append using "`1'/combined_`hash'_l.dta"
 				quietly: save "`1'/combined_`hash'_l.dta", replace
 			}
