@@ -56,7 +56,7 @@ program combinesites
 		}
 		quietly: cd "`1'"
 		clear 
-		local dta_file : dir . files "`hash'_l.dta", respectcase
+		local dta_file : dir . files "combined_`hash'_l.dta", respectcase
 		if `"`dta_file'"'~="" {
 			use "combined_`hash'_l.dta"
 			hashlongtowide `hash' combine
