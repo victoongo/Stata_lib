@@ -15,7 +15,7 @@ program hashlongtowide
 	order __*
 	
 	local stata "./stata"
-	if "`2'"=="" local stata "."
+	if "`2'"=="combine" local stata "."
 	quietly: save "`stata'/`combined'`hash'_all.dta", replace
 	quietly: drop *edit*
 	quietly: save "`stata'/`combined'`hash'_s.dta", replace
