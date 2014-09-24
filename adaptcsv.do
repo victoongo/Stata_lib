@@ -11,24 +11,26 @@ capture gen device_user=.
 capture gen response_time_started=.
 capture gen response_time_ended=.
 sort device_user survey_uuid short_qid response_time_ended
-by device_user survey_uuid short_qid: keep if _n==_N
+by device_user survey_uuid short_qid: keep if _n==_N // keep only the latest qid for each question
 sort survey_uuid short_qid
 tempfile original
-save `original', replace
+save original, replace
+
 keep survey_uuid
 bysort survey_uuid: keep if _n==1
-gen survey_uuid_n=_n
+gen survey_uuid_n=_n // create artificial numeric survey_uuid, will be replaced by index in later version csv
 sort survey_uuid
 *tempfile uuid
 *save `uuid', replace
-merge 1:m survey_uuid using `original', nogen
-
+merge 1:m survey_uuid using original, nogen
 tempfile original_n
-save `original_n', replace
+save original_n, replace
+
 keep if strmatch(question_type,"*SELECT_MULTIPLE*")
 tempfile multi
-save `multi', replace
-use `original_n', clear
+save multi, replace
+
+use original_n, clear
 *drop if strmatch(question_type,"*SELECT_MULTIPLE*")
 drop short_qid question_type question_text
 reshape wide response response_labels special_response other_response, i(survey_uuid_n) j(qid, string)
@@ -37,14 +39,27 @@ reshape wide response response_labels special_response other_response, i(survey_
 *rename response_labels* *
 rename response* *
 tempfile original_wide
-save `original_wide', replace
-/*
+save original_wide, replace
 
-*/
+use original, clear
+*keep if strmatch(question_type,"*SELECT_MULTIPLE*") | strmatch(question_type,"*SELECT_ONE*")
+split response if strmatch(question_type,"*SELECT_MULTIPLE*"), p(",")
+split response_labels if strmatch(question_type,"*SELECT_MULTIPLE*"), p(",")
+rename response response_original
+rename response_labels response_labels_original
+gen n=_n
+reshape long response response_labels, i(n) j()
+destring response, replace
+drop if response==.
+bysort qid response: keep if _n==1
+keep qid question_type response response_labels
+bysort qid question_type: gen noptions=_n
+
 
 *** create var labs
-use `original', clear
-keep qid question_type question_text
+use original, clear
+bysort short_qid /*short_qid_version*/: keep if _n==1
+keep qid question_type question_text response response_labels
 gen question_text_len=strlen(question_text)
 
 capture file close varlab
@@ -57,28 +72,14 @@ forvalues x=1/`n' {
 	if question_text_len[`x']>77 file write varlab `"notes `=qid[`x']': "`=question_text[`x']'""' _n
 }
 file close varlab
-use `original_wide', clear
+use original_wide, clear
 do varlab.do
 
 
 
-use `original', clear
-*keep if strmatch(question_type,"*SELECT_MULTIPLE*") | strmatch(question_type,"*SELECT_ONE*")
-split response, p(",")
-split response_labels, p(",")
-rename response response_original
-rename response_labels response_labels_original
-gen n=_n
-reshape long response response_labels, i(n) j()
-destring response, replace
-drop if response==.
-bysort qid response: keep if _n==1
-keep qid question_type response response_labels
-bysort qid question_type: gen noptions=_n
 
 
-
-use `original_wide', clear
+use original_wide, clear
 do mobile_varlab.do
 do mobile_vallab.do
 save day_wide_wlab, replace
