@@ -7,40 +7,38 @@ cd "D:\csvtostata"
 *insheet using "Baseline_Survey.csv", comma clear case
 insheet using "Test_Instrument_One_-_types.csv", comma clear case
 *insheet using "buggy.csv", comma clear case
-capture gen device_user=. //
-capture gen response_time_started=. //
-capture gen response_time_ended=. //
-sort device_user survey_uuid short_qid response_time_ended
-by device_user survey_uuid short_qid: keep if _n==_N // keep only the latest qid for each question
-sort survey_uuid short_qid
+insheet using "first_test.csv", comma clear case
+
+tostring question_version_number, replace
+replace question_version_number="n1" if question_version_number=="-1"
+replace qid=qid + "_v" + question_version_number
+replace short_qid=short_qid + "_v" + question_version_number
+*egen qidv=concat(qid question_version_number)
+*replace qid=qidv
+*egen s_qidv=concat(short_qid question_version_number)
+*replace short_qid=s_qidv
+*drop qidv s_qidv
+sort device_user_id survey_id short_qid response_time_ended
+by device_user_id survey_id short_qid: keep if _n==_N // keep only the latest qid for each question
+sort survey_id short_qid
 tempfile original
 save original, replace
 
-* create artificial numeric survey_uuid, will be replaced by index in later version csv
-keep survey_uuid
-bysort survey_uuid: keep if _n==1
-gen survey_uuid_n=_n // 
-sort survey_uuid
-*tempfile uuid
-*save `uuid', replace
-merge 1:m survey_uuid using original, nogen
-tempfile original_n
-save original_n, replace
-
 * reshape to wide format
-use original_n, clear
+use original, clear
+rename (response response_labels special_response other_response) (response_ labels_ special_ other_)
 *drop if strmatch(question_type,"*SELECT_MULTIPLE*")
-drop short_qid question_type question_text
-reshape wide response response_labels special_response other_response, i(survey_uuid_n) j(qid, string)
-*rename special_response* *
-*rename other_response* *
-*rename response_labels* *
-rename response* *
+drop short_qid question_type question_text response_time_started response_time_ended
+reshape wide response labels_ special_ other_, i(survey_id) j(qid, string)
+rename special_* *_sp
+rename other_* *_oth
+rename labels_* *_lab
+rename response_* *
 tempfile original_wide
 save original_wide, replace
 
 * keep single for val lab
-use original_n, clear
+use original, clear
 keep if strmatch(question_type,"*SELECT_ONE*")
 drop if response==""
 bysort qid response: keep if _n==1
@@ -60,7 +58,7 @@ forvalues x=1/`n' {
 file close vallab
 
 * keep multi for val lab
-use original_n, clear
+use original, clear
 keep if strmatch(question_type,"*SELECT_MULTIPLE*")
 *keep if strmatch(question_type,"*SELECT_MULTIPLE*") | strmatch(question_type,"*SELECT_ONE*")
 split response if strmatch(question_type,"*SELECT_MULTIPLE*"), p(",")
@@ -88,7 +86,7 @@ forvalues x=1/`n' {
 	file write varlab2 `"capture: lab var `=qid[`x']'_`=response[`x']' "`=q_multi_var_lab[`x']'""' _n
 	file write varlab2 `"capture: notes `=qid[`x']'_`=response[`x']': "`=question_type[`x']'""' _n
 	if q_multi_var_lab_len[`x']>77 file write varlab2 `"capture: notes `=qid[`x']'_`=response[`x']': "`=q_multi_var_lab[`x']'""' _n
-	*if `=qid_n[`x']'==`=qid_n2[`x']' file write varlab2 `"drop `=qid[`x']'_br"' _n
+	if `=qid_n[`x']'==`=qid_n2[`x']' file write varlab2 `"drop `=qid[`x']'_br"' _n
 }
 file close varlab2
 
