@@ -2,13 +2,15 @@ set more off
 set matsize 11000
 cd "D:\csvtostata"
 
+
+********** instrument level 
 ***** variable names for mobile data
 * additional complication: single select with openendedtext
 *insheet using "Baseline_Survey.csv", comma clear case
 insheet using "Test_Instrument_One_-_types.csv", comma clear case
 *insheet using "buggy.csv", comma clear case
 insheet using "first_test.csv", comma clear case
-
+insheet using "Week_In_The_Life.csv", comma clear case
 tostring question_version_number, replace
 replace question_version_number="n1" if question_version_number=="-1"
 replace qid=qid + "_v" + question_version_number
@@ -92,7 +94,7 @@ file close varlab2
 
 *** create var labs. done
 use original, clear
-bysort short_qid /*short_qid_version*/: keep if _n==1
+bysort short_qid: keep if _n==1
 keep qid question_type question_text response response_labels
 gen question_text_len=strlen(question_text)
 
