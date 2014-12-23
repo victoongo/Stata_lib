@@ -7,15 +7,17 @@
 // How to use it:
 // 1, set the Stata working directory to the folder the csv file is located using the cd command. 
 // 2, type -adaptcsv "filename"- note: do NOT add the .csv extension name. and put the filename in double quote
+// 3, if the varialbe names are too long, try -adaptcsv "filename" "shorten"- "shorten" needs to be typed as is. 
+//    it will shorten the variable name to fit stata requirements but it will also add a "_n" to the end of all variable names. 
 
 program adaptcsv
 
-args filename
+args filename short
 insheet using "`filename'.csv", comma clear case
 tostring question_version_number, replace
 replace question_version_number="n1" if question_version_number=="-1"
-replace qid=qid + "_v" + question_version_number
-replace short_qid=short_qid + "_v" + question_version_number
+replace qid=qid + "_" + question_version_number
+replace short_qid=short_qid + "_" + question_version_number
 drop question_version_number
 sort device_user_id survey_id short_qid response_time_ended
 by device_user_id survey_id short_qid: keep if _n==_N // keep only the latest qid for each question
@@ -23,27 +25,46 @@ sort survey_id short_qid
 tempfile original
 save `original', replace
 
+if "`short'"=="shorten" {
+	use qid using `original', clear
+	bysort qid: keep if _n==1
+	gen qid_s=abbrev(qid,27)
+	replace qid_s=subinstr(qid_s,"~","",.)
+	bysort qid_s: gen n=_n
+	tostring n, replace
+	replace qid_s=qid_s + "_" + n
+	sort qid
+	drop n
+	merge 1:m qid using `original', nogen
+	rename (qid qid_s) (qid_l qid)
+	drop qid_l
+	save `original', replace
+}
+
 * reshape to wide format
 use `original', clear
-rename (response response_labels special_response other_response device_user_id device_user_username) (response_ labels_ special_ other_ du_id_ du_name_)
+rename (response response_labels special_response other_response device_user_id device_user_username) (rs_ la_ sp_ ot_ id_ nm_)
 drop short_qid question_type question_text response_time_started response_time_ended
-reshape wide response labels_ special_ other_ du_id_ du_name_, i(survey_id) j(qid, string)
-rename special_* *_sp
-rename other_* *_oth
-rename labels_* *_lab
-rename response_* *
-rename du_id_* *_du_id
-rename du_name_* *_du_name
+reshape wide rs_ la_ sp_ ot_ id_ nm_, i(survey_id) j(qid, string)
+rename rs_* *
+rename sp_* *_sp
+rename ot_* *_ot
+rename la_* *_la
+rename id_* *_id
+rename nm_* *_nm
 tempfile original_wide
 save `original_wide', replace
 
 * keep single for val lab
 use `original', clear
 keep if strmatch(question_type,"*SELECT_ONE*")
+destring response, replace
+drop if response==.
 bysort qid response: keep if _n==1
 keep qid response response_labels
 bysort qid: gen qid_n=_n
 bysort qid: gen qid_n2=_N
+replace response_labels="No Label Found!" if response_labels==""
 capture file close vallab
 file open vallab using "vallab.do", write text replace
 local n=_N

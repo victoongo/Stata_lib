@@ -4,21 +4,23 @@ set matsize 11000
 cd "D:\Dropbox\Projects\WITL\csvtostata"
 
 /*
-adaptcsv "Test_Instrument_One_-_types"
+adaptcsv "WCI_QCUALS_-_II_-_Interview-2" 
+"shorten"
 */
 
 ********** instrument level 
 ***** variable names for mobile data
 * additional complication: single select with openendedtext
 *insheet using "Baseline_Survey.csv", comma clear case
-insheet using "Test_Instrument_One_-_types.csv", comma clear case
+*insheet using "Test_Instrument_One_-_types.csv", comma clear case
+insheet using "WCI_QCUALS_-_II_-_Interview-2.csv", comma clear case
 *insheet using "buggy.csv", comma clear case
 *insheet using "first_test.csv", comma clear case
 *insheet using "Week_In_The_Life.csv", comma clear case
 tostring question_version_number, replace
 replace question_version_number="n1" if question_version_number=="-1"
-replace qid=qid + "_v" + question_version_number
-replace short_qid=short_qid + "_v" + question_version_number
+replace qid=qid + "_" + question_version_number
+replace short_qid=short_qid + "_" + question_version_number
 drop question_version_number
 *egen qidv=concat(qid question_version_number)
 *replace qid=qidv
@@ -29,26 +31,42 @@ sort device_user_id survey_id short_qid response_time_ended
 by device_user_id survey_id short_qid: keep if _n==_N // keep only the latest qid for each question
 sort survey_id short_qid
 drop if device_user_id==.
+sort qid
 tempfile original
-save `original', replace
+save original, replace
+
+use qid using original, clear
+bysort qid: keep if _n==1
+gen qid_s=abbrev(qid,27)
+replace qid_s=subinstr(qid_s,"~","",.)
+bysort qid_s: gen n=_n
+tostring n, replace
+replace qid_s=qid_s + "_" + n
+sort qid
+drop n
+merge 1:m qid using original, nogen
+rename (qid qid_s) (qid_l qid)
+drop qid_l
+save original, replace
+
 
 * reshape to wide format
-use `original', clear
-rename (response response_labels special_response other_response device_user_id device_user_username) (response_ labels_ special_ other_ du_id_ du_name_)
+use original, clear
 *drop if strmatch(question_type,"*SELECT_MULTIPLE*")
+rename (response response_labels special_response other_response device_user_id device_user_username) (rs_ la_ sp_ ot_ id_ nm_)
 drop short_qid question_type question_text response_time_started response_time_ended
-reshape wide response labels_ special_ other_ du_id_ du_name_, i(survey_id) j(qid, string)
-rename special_* *_sp
-rename other_* *_oth
-rename labels_* *_lab
-rename response_* *
-rename du_id_* *_du_id
-rename du_name_* *_du_name
+reshape wide rs_ la_ sp_ ot_ id_ nm_, i(survey_id) j(qid, string)
+rename rs_* *
+rename sp_* *_sp
+rename ot_* *_ot
+rename la_* *_la
+rename id_* *_id
+rename nm_* *_nm
 tempfile original_wide
-save `original_wide', replace
+save original_wide, replace
 
 * keep single for val lab
-use `original', clear
+use original, clear
 keep if strmatch(question_type,"*SELECT_ONE*")
 drop if response==""
 bysort qid response: keep if _n==1
@@ -68,7 +86,7 @@ forvalues x=1/`n' {
 file close vallab
 
 * keep multi for val lab
-use `original', clear
+use original, clear
 keep if strmatch(question_type,"*SELECT_MULTIPLE*")
 *keep if strmatch(question_type,"*SELECT_MULTIPLE*") | strmatch(question_type,"*SELECT_ONE*")
 split response if strmatch(question_type,"*SELECT_MULTIPLE*"), p(",")
@@ -101,7 +119,7 @@ forvalues x=1/`n' {
 file close varlab2
 
 *** create var labs. 
-use `original', clear
+use original, clear
 bysort short_qid: keep if _n==1
 keep qid question_type question_text response response_labels
 gen question_text_len=strlen(question_text)
@@ -117,7 +135,7 @@ forvalues x=1/`n' {
 }
 file close varlab
 
-use `original_wide', clear
+use original_wide, clear
 do varlab.do
 *!del varlab.do
 do varlab2.do
