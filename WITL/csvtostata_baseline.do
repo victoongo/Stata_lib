@@ -13,43 +13,53 @@ replace screentext=subinstr(screentext,char(148),char(39),.) // right double quo
 replace screenresultanswertext=subinstr(screenresultanswertext,char(146),char(39),.) // right single quote replaced by normal single quote char(39)
 replace screenresultanswertext=subinstr(screenresultanswertext,char(147),char(39),.) // left double quote replaced by normal single quote char(39)
 replace screenresultanswertext=subinstr(screenresultanswertext,char(148),char(39),.) // right double quote replaced by normal single quote char(39)
+replace screenresultanswertext=subinstr(screenresultanswertext,`"""',"",.) 
+replace screentext=subinstr(screentext,`"""',"",.) 
 replace screentext=trim(screentext)
 *replace screentext=subinstr(screentext, " (Scroll Down)", "",.)
 *replace screentext=subinstr(screentext, " (SCROLL DOWN)", "",.)
 replace screenresultanswertext=trim(screenresultanswertext)
 save WITLvarnamesBaseline, replace
 
-* non-multi select
+* to deal with :
+* single select, grid single select, grid scale - vallab
+* openended single select - asis, string var
+* multi select - create dummy
+* open end of multiselect - create string var
+* dropdown, Time, Numeric, Text - asis
+* all have varlab
+
+* non-multi, select (there are no openended non-multi select in baseline)
 use WITLvarnamesBaseline, clear
-keep if screenresultanswertext==""  & openendedtext==""
+* keep if screenresultanswertext==""  & openendedtext==""
+keep if screentypename=="Grid - Single Select" | screentypename=="Single Select" | screentypename=="Grid Scale"
 save WITLvarnamesBaseline_o, replace
 
-* grid single select vs grid scale
+* non-select
 use WITLvarnamesBaseline, clear
-keep if screenresultanswertext=="" & openendedtext~=""
-gen screentypename=openendedtext 
+keep if screentypename=="" 
 save WITLvarnamesBaseline_g, replace
 
 * multi-select without openend
 use WITLvarnamesBaseline, clear
-keep if screenresultanswertext~="" & openendedtext~="Y"
+keep if screentypename=="Multi Select" & openendedtext~="Y"
 save WITLvarnamesBaseline_m, replace
 
-* openend of multi-select
+* openended of multi-select
 use WITLvarnamesBaseline, clear
 rename screentext screentext_y
-keep if screenresultanswertext~="" & openendedtext=="Y"
+keep if screentypename=="Multi Select" & openendedtext=="Y"
 save WITLvarnamesBaseline_my, replace
 
 
 
 ***** get the latest baseline data
-local rlst : dir .  files  "*baseline*.csv"
+local rlst : dir .  files  "a week in the life- baseline survey (1.0) 201?????_standard_comma.csv"
 di `"`rlst'"'
 local n_files : word count `rlst'
 local newfile `: word `n_files' of `rlst''
 di `"`newfile'"'
-insheet using "`newfile'", names c clear
+import delimited "`newfile'", stripq(yes) bindquotes(strict) clear
 forvalues x=1/999 {
 	quietly: replace screentext=subinstr(screentext, "Q`x'.", "",.)
 }
@@ -85,9 +95,9 @@ replace screenresultanswertext=subinstr(screenresultanswertext,"”",char(39),.)
 replace screentext=trim(screentext)
 replace screenresultanswertext=trim(screenresultanswertext)
 *merge m:m screentext using WITLvarnamesBaseline
-merge m:1 screentext using WITLvarnamesBaseline_o, keep(1 3)
+merge m:1 screentext screentypename using WITLvarnamesBaseline_o, keep(1 3)
 rename _merge _merge_o
-merge m:1 screentext screentypename using WITLvarnamesBaseline_g, keep(1 3 4 5) update
+merge m:1 screentext using WITLvarnamesBaseline_g, keep(1 3 4 5) update
 rename _merge _merge_g
 merge m:1 screentext screenresultanswertext using WITLvarnamesBaseline_m, keep(1 3 4 5) update
 rename _merge _merge_m
@@ -104,7 +114,7 @@ list n if screentext=="."
 drop merge
 egen merge=concat(_merge_o _merge_g _merge_m _merge_my)
 ta merge
-tab1 screentypename screenresultanswertext if screentext==".", missing
+*tab1 screentypename screenresultanswertext if screentext==".", missing
 *keep if merge=="1111"
 save baseline_long, replace
 

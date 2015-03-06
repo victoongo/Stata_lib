@@ -6,7 +6,7 @@ cd "D:\Dropbox\Projects\WITL\new_results"
 ***** variable names for mobile data
 * additional complication: single select with openendedtext
 import excel "WITLvarnamesMobile.xlsx", sheet("Sheet1") firstrow case(lower) clear
-drop f g
+drop g
 gen var_order=_n
 drop if screentypename=="" & screenresultanswertext=="" & variablename=="" & openendedtext=="" & screentext==""
 replace screentext=subinstr(screentext,char(146),char(39),.) // right single quote replaced by normal single quote char(39)
@@ -15,24 +15,38 @@ replace screentext=subinstr(screentext,char(148),char(39),.) // right double quo
 replace screenresultanswertext=subinstr(screenresultanswertext,char(146),char(39),.) // right single quote replaced by normal single quote char(39)
 replace screenresultanswertext=subinstr(screenresultanswertext,char(147),char(39),.) // left double quote replaced by normal single quote char(39)
 replace screenresultanswertext=subinstr(screenresultanswertext,char(148),char(39),.) // right double quote replaced by normal single quote char(39)
+replace screenresultanswertext=subinstr(screenresultanswertext,`"""',"",.) 
+replace screentext=subinstr(screentext,`"""',"",.) 
 replace screenresultanswertext=trim(screenresultanswertext)
 replace variablename=trim(variablename)
 save WITLvarnamesMobile, replace
 
-* non-multi select
+* non-multi select without single-select w/ openend
 use WITLvarnamesMobile, clear
-keep if screenresultanswertext==""
+keep if screenresultanswertext=="" // & openendedtext==""
+drop screentypename
 save WITLvarnamesMobile_o, replace
+
+*keep if screentypename=="Grid - Single Select" | screentypename=="Single Select" | screentypename=="Dropdown" | 
+* deal with Time
+
+* single-select w/ openend
+use WITLvarnamesMobile, clear
+keep if singleselecttextoption~=""
+drop screentypename
+save WITLvarnamesMobile_so, replace
 
 * multi-select without openend
 use WITLvarnamesMobile, clear
 keep if screenresultanswertext~="" & openendedtext==""
+drop screentypename
 save WITLvarnamesMobile_m, replace
 
 * openend of multi-select
 use WITLvarnamesMobile, clear
 rename screentext screentext_y
 keep if screenresultanswertext~="" & openendedtext=="Y"
+drop screentypename screenresultanswertext
 save WITLvarnamesMobile_my, replace
 
 * create full variablename list
@@ -43,24 +57,26 @@ keep var_order variablename
 save WITLvarnamesMobile_varlst, replace
 
 ***** manual insheet 1.2
-insheet using "A Week in the Life- Mobile Survey (1.2) 20140925_Standard_Comma.csv", names c clear
+import delimited "A Week in the Life- Mobile Survey (1.2) 20140925_Standard_Comma.csv", stripq(yes) bindquotes(strict) clear
 forvalues x=1/999 {
 	quietly: replace screentext=subinstr(screentext, "Q`x'.", "",.)
 }
 save mobile_temp12, replace
  
 ***** get the latest mobile data
-local rlst : dir .  files  "*mobile*(1.3)*.csv"
+local rlst : dir .  files  "a week in the life- mobile survey (1.3) 201?????_standard_comma.csv"
 di `"`rlst'"'
 local n_files : word count `rlst'
 local newfile `: word `n_files' of `rlst''
 di `"`newfile'"'
-insheet using "`newfile'", names c clear
+* insheet using "`newfile'", names c clear
+import delimited "`newfile'", stripq(yes) bindquotes(strict) clear
 forvalues x=1/999 {
 	quietly: replace screentext=subinstr(screentext, "Q`x'.", "",.)
 }
 save mobile_temp, replace
 append using mobile_temp12
+drop if resultdevicename==.
 save mobile_temp, replace
 
 ** special case with a year 2000 time stamp. all the time stamps are in the 2000
@@ -122,27 +138,27 @@ rename _merge _merge_my
 drop screentext_y
 sort n
 
-list n if screentext=="."
+*list n if screentext=="."
 drop merge
 egen merge=concat(_merge_o _merge_m _merge_my)
-ta merge
-tab1 screentypename screenresultanswertext if screentext==".", missing
+*ta merge
+*tab1 screentypename screenresultanswertext if screentext==".", missing
 
 sort resultdevicename resultid tlocal
 by resultdevicename resultid : gen nn=_n
 by resultdevicename resultid : gen n2=_N
-ta screentext if nn==n2
-ta screenresultanswertext if nn==n2, missing
-list nn n2 screenresultanswertext if screentext=="." // & nn~=n2 
+*ta screentext if nn==n2
+*ta screenresultanswertext if nn==n2, missing
+*list nn n2 screenresultanswertext if screentext=="." // & nn~=n2 
 gen trimarkt=cond(variablename=="trimark" & screenresultanswertext=="Morning",1, ///
 	cond(variablename=="trimark" & screenresultanswertext=="Afternoon",2, ///
 	cond(variablename=="trimark" & screenresultanswertext=="Evening",3,.)))
 bysort resultid resultdevicename: egen trimarki=mean(trimarkt)
 gen trimark=cond(trimarki==1,"am",cond(trimarki==2,"as",cond(trimarki==3,"pm","")))
-replace variablename="amlastq" if screentext=="." & trimarki==1
-replace variablename="aslastq" if screentext=="." & trimarki==2
-replace variablename="pmlastq" if screentext=="." & trimarki==3
-replace screentext="anything else? last question" if screentext=="."
+*replace variablename="amel01" if screentext=="." & trimarki==1
+*replace variablename="asel01" if screentext=="." & trimarki==2
+*replace variablename="pmel01" if screentext=="." & trimarki==3
+*replace screentext="anything else? last question" if screentext=="."
 save mobile_long, replace
 
 ***** reshape to day wide 
@@ -163,15 +179,15 @@ forvalues i=1/`c' {
 local varnames_drop: list varnames_new-varnames_original
 drop if variablename==""
 reshape wide screenresultanswertext, i(resultid) j(variablename, string)
-compress
+quietly: compress
 bysort resultdevicename dlocal_min trimark: keep if _n==1 // I have to only keep the first of the repeated surveys here (ie, for someone who did am survey twince in a day)
-reshape wide resultid screenresultanswertext*, i(resultdevicename dlocal_min) j(trimark, string)
+quietly: reshape wide resultid screenresultanswertext*, i(resultdevicename dlocal_min) j(trimark, string)
 rename screenresultanswertext*am am*
 rename screenresultanswertext*as as*
 rename screenresultanswertext*pm pm*
 drop `varnames_drop'
-compress
-destring *, replace
+quietly: compress
+quietly: destring *, replace
 save day_wide, replace
 
 * create data for var label
@@ -179,7 +195,7 @@ use mobile_long, clear
 keep screentext variablename screenresultanswertext openendedtext screentypename
 drop if inlist(variablename,"id","trimark")
 bysort variablename: keep if _n==1
-replace screenresultanswertext="" if strmatch(variablename,"*_*")~=1
+replace screenresultanswertext="" if strmatch(variablename,"*_*")~=1 // only multi with non-open ended is kept
 replace screenresultanswertext="openendedtext" if screenresultanswertext~="" & openendedtext=="Y"
 gen screentext77=substr(screentext,1,77)
 egen label=concat(screentext screenresultanswertext), p("=")
@@ -220,23 +236,30 @@ forvalues x=1/`n' {
 }
 file close varlab
 
-
+/*
 ***** create varname and val label list
 * put the variable list in a global for value label creation
 use mobile_varlab, clear
+keep if screentypename=="Single Select"
+quietly: levelsof variablename, clean missing
+global mobile_allvar `r(levels)'
+di "$mobile_allvar"
+*/
+/*
 drop if openendedtext=="Y" 
 drop if inlist(variablename,"amsq01","amsq02")
 quietly: levelsof variablename if screentypename=="Text", clean missing
 global mobile_drop `r(levels)'
 di "$mobile_drop"
 drop if screentypename=="Text"
-keep variablename
+keep variablename screentypename
 quietly: levelsof variablename, clean missing
 global mobile_allvar `r(levels)'
 di "$mobile_allvar"
 *global mobile_drop: list global(mobile_all) - global(mobile_allvar)
 *di "$mobile_drop"
-
+*/
+/*
 use day_wide, clear
 capture file close vallab
 file open vallab using "mobile_vallab.txt", write text replace
@@ -260,7 +283,7 @@ foreach x of global mobile_allvar {
 	else global mobile_drop $mobile_drop `x'
 }
 file close vallab
-di "$mobile_drop"
+*di "$mobile_drop"
 
 * read the val labels
 insheet variablename val_lab using "mobile_vallab.txt", clear case
@@ -274,8 +297,10 @@ replace numeric="9999" if val_lab=="SKIP"
 replace numeric="0" if val_lab=="No"
 replace numeric="1" if val_lab=="Yes"
 export excel using "mobile_vallab", firstrow(variables) replace
+*/
 *****>>>>>manual step to fill in numeric values and add val labels not in the data<<<<<*****
 import excel "mobile_vallab_mod.xls", sheet("Sheet1") firstrow allstring clear
+drop if variablename==""
 gen n=_n
 tostring n, replace
 *replace numeric=n if numeric==""
@@ -306,8 +331,10 @@ file close vallab
 
 
 use day_wide, clear
-quietly: do mobile_varlab.do
+*quietly: 
+do mobile_varlab.do
 do mobile_vallab.do
+destring, replace
 save day_wide_wlab, replace
 
 

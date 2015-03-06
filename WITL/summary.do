@@ -2,7 +2,7 @@ set more off
 set matsize 11000
 cd "D:\Dropbox\Projects\WITL\results"
 
-local rlst : dir .  files  "*.csv"
+local rlst : dir .  files  "a week in the life- mobile survey (1.3) 201?????_standard_comma.csv"
 di `"`rlst'"'
 local n_files : word count `rlst'
 local newfile `: word `n_files' of `rlst''
@@ -25,7 +25,7 @@ gen skiprate=nssvy/(nqsvy-1) if qn==1
 sort pid svytime
 by pid: egen pidskiprate=mean(skiprate)
 
-keep if strmatch(q, "*What time of day is it*")==1
+keep if strmatch(q, "Q*.What time of day is it?")==1
 gen double tsvy=clock(svytime, "YMDhms")
 gen dsvy=dofc(tsvy)
 gen dowsvy=dow(dsvy)
